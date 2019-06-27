@@ -1,3 +1,14 @@
+## Project
+# Uploaded files directory
+files/
+
+# Multimedia
+*.mp4
+
+# Mac OS X
+.DS_Store
+
+## Node.js
 # Logs
 logs
 *.log
