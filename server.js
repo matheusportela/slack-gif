@@ -22,6 +22,9 @@ app.use(bodyParser.json())
 
 const port = process.env.PORT || 3000
 
+const channel_name = '#make-gifs'
+const channel_id = 'CKZKN7M45'
+
 const convertVideo = (input, output) => {
   return new Promise((resolve, reject) => {
     console.log(`converting video ${input} to gif ${output}`)
@@ -106,7 +109,7 @@ const upload = (filename) => {
           token: process.env.SLACK_AUTH_TOKEN,
           file: fs.createReadStream(filename),
           filename: filename,
-          channels: '#general',
+          channels: channel_name,
         }
       }, (err, res, body) => {
         if (err) {
@@ -123,8 +126,14 @@ const upload = (filename) => {
 const event_callbacks = {
   file_created: (data) => {
     return new Promise((resolve, reject) => {
+      console.log(data)
+
       requestFileInfo(data.event.file_id).then((file) => {
         console.log(file)
+
+        if (file.channels.indexOf(channel_id) === -1) {
+          throw new Error('not in correct channel')
+        }
 
         if (file.mimetype.includes('video/')) {
           return file.url_private
@@ -190,7 +199,7 @@ app.post('/', (req, res) => {
   var data = {
     form: {
       token: process.env.SLACK_AUTH_TOKEN,
-      channel: '#general',
+      channel: channel_name,
       text: 'Hi! :wave:'
     }
   }
