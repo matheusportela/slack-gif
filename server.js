@@ -7,7 +7,7 @@ const fs = require('fs')
 
 const querystring = require('querystring')
 const fileUpload = require('express-fileupload')
-const gify = require('gify')
+const gify = require('./gify')
 
 const app = express()
 app.use(express.static('.'))
