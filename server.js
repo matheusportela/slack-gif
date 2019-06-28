@@ -23,6 +23,7 @@ app.use(bodyParser.json())
 const port = process.env.PORT || 3000
 
 convertVideo = (input, output, func) => {
+  console.log(`converting video ${input} to gif ${output}`)
   opts = {
     width: 50,
     height: 50,
@@ -50,8 +51,24 @@ app.post('/', (req, res) => {
   })
 })
 
-const download = (url, output, callback) => {
-  console.log(url)
+const requestFileInfo = (fileId, func) => {
+  console.log(`requesting file ${fileId} info`)
+  const query = querystring.stringify({
+    token: process.env.SLACK_AUTH_TOKEN,
+    file: fileId
+  })
+  request.get(`https://slack.com/api/files.info?${query}`, (error, res, body) => {
+    json = JSON.parse(body)
+    const file = json.file
+
+    console.log(json)
+
+    func(file)
+  })
+}
+
+const download = (url, output, func) => {
+  console.log(`downloading file ${url} to ${output}`)
   const file = fs.createWriteStream(output)
 
   const sendReq = request.get(url, {
@@ -62,73 +79,57 @@ const download = (url, output, callback) => {
 
   sendReq.on('response', (res) => {
     if (res.statusCode !== 200) {
-      return callback(`response status: ${res.statusCode}`)
+      return func(`response status: ${res.statusCode}`)
     }
 
     res.pipe(file)
   })
 
-  file.on('finish', () => file.close(callback))
+  file.on('finish', () => file.close(func))
 
   sendReq.on('error', (err) => {
     fs.unlink(output)
-    return callback(err.message)
+    return func(err.message)
   })
 
   file.on('error', (err) => {
     fs.unlink(output)
-    return callback(err.message)
+    return func(err.message)
   })
+}
+
+const upload = (filename) => {
+  console.log(`uploading file ${filename}`)
+  request
+    .post({
+      url: 'https://slack.com/api/files.upload',
+      formData: {
+        token: process.env.SLACK_AUTH_TOKEN,
+        file: fs.createReadStream(filename),
+        filename: filename,
+        channels: '#general',
+      }
+    }, (err, res, body) => {
+      if (err) {
+        console.log('error when uploading', err)
+      } else {
+        console.log('finished upload')
+      }
+    })
 }
 
 const event_callbacks = {
   file_created: (data) => {
-    console.log('received file')
-    console.log(data)
-    const query = querystring.stringify({
-      token: process.env.SLACK_AUTH_TOKEN,
-      file: data.event.file_id
-    })
-    console.log('requesting info')
-    request.get(`https://slack.com/api/files.info?${query}`, (error, res, body) => {
-      json = JSON.parse(body)
-      const file = json.file
-
-      console.log(json)
+    requestFileInfo(data.event.file_id, (file) => {
       console.log(file)
+
       if (file.filetype === 'mp4') {
+        console.log('downloading file')
         const videoFilename = 'video.mp4'
         const gifFilename = 'video.gif'
-        console.log('downloading file')
         download(file.url_private, videoFilename, () => {
-          console.log('finished downloading')
           convertVideo(videoFilename, gifFilename, () => {
-            console.log('finish converting')
-
-            console.log('uploading file')
-            var data = {
-              form: {
-                token: process.env.SLACK_AUTH_TOKEN,
-                channel: '#general',
-                // file: gifFilename
-              }
-            }
-            request
-              .post({
-                url: 'https://slack.com/api/files.upload',
-                formData: {
-                  file: fs.createReadStream(gifFilename),
-                  filename: gifFilename,
-                  token: process.env.SLACK_AUTH_TOKEN,
-                  channels: '#general',
-                }
-              }, (err, res, body) => {
-                if (err) {
-                  console.log('error when uploading', err)
-                } else {
-                  console.log('finished upload')
-                }
-              })
+            upload(gifFilename)
           })
         })
       } else {
@@ -141,6 +142,7 @@ const event_callbacks = {
 const global_callbacks = {
   url_verification: (data) => data.challenge,
   event_callback: (data) => {
+    console.log(`Received event ${data.event.type}`)
     const callback = event_callbacks[data.event.type]
     if (callback) {
       return callback(data)
@@ -152,10 +154,10 @@ const global_callbacks = {
 
 app.post('/slack-event', (req, res) => {
   const data = req.body
+  console.log(`Received event ${data.type}`)
   const callback = global_callbacks[data.type]
   if (callback) {
     const response = callback(data)
-    // console.log(response)
     res.send(response)
   } else {
     res.sendStatus(500)
