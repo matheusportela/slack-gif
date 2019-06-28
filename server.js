@@ -126,15 +126,15 @@ const event_callbacks = {
       requestFileInfo(data.event.file_id).then((file) => {
         console.log(file)
 
-        if (file.filetype === 'mp4') {
+        if (file.mimetype.includes('video/')) {
           return file.url_private
         } else {
-          console.log('not mp4')
-          throw new Error('not mp4')
+          console.log('not a video')
+          throw new Error('not a video')
         }
       }).then((url) => {
         console.log('downloading file')
-        const videoFilename = 'video.mp4'
+        const videoFilename = 'video'
         return download(url, videoFilename)
       }, (err) => {
         console.log(`skipping download: ${err}`)
