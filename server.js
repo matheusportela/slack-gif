@@ -29,8 +29,6 @@ const convertVideo = (input, output) => {
   return new Promise((resolve, reject) => {
     console.log(`converting video ${input} to gif ${output}`)
     opts = {
-      width: 50,
-      height: 50,
       delay: 0.2,
     }
     gify(input, output, (err) => {
