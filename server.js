@@ -195,31 +195,22 @@ app.post('/slack-event', (req, res) => {
   }
 })
 
-app.post('/', (req, res) => {
-  var data = {
-    form: {
-      token: process.env.SLACK_AUTH_TOKEN,
-      channel: channel_name,
-      text: 'Hi! :wave:'
-    }
-  }
-  request.post('https://slack.com/api/chat.postMessage', data, (error, res, body) => {
-    res.send('testing')
-  })
-})
-
 app.post('/convert', (req, res) => {
   console.log(req.files)
   const file = req.files.video
   const input = file.tempFilePath
   const output = `${input}.gif`
-  convertVideo(input, output, () => {
-    // TODO: Passing the file path is a security issue that must be addressed
-    const query = querystring.stringify({
-      filename: output
+  convertVideo(input, output)
+    .then((gifFilename) => {
+      console.log('finished converting video')
+      // TODO: Passing the file path is a security issue that must be addressed
+      const query = querystring.stringify({
+        filename: gifFilename
+      })
+      res.redirect(`/gif?${query}`)
+    }, (err) => {
+      console.log('error converting video: ', err)
     })
-    res.redirect(`/gif?${query}`)
-  })
 })
 
 app.get('/gif', (req, res) => {
