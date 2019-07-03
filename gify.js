@@ -56,11 +56,12 @@ function gify(input, output, opts, fn) {
     delay = 1000 / rate / 10 | 0;
   }
 
-  // scale
-  var scale;
-  if (w) scale = w + ':-1';
-  else if (h) scale = '-1:' + h;
-  else scale = '500:-1';
+  // resize
+  var resize;
+  if (w && h) resize = w + 'x' + h;
+  else if (w) resize = w + 'x' + w;
+  else if (h) resize = h + 'x' + h;
+  else resize = '500x500';
 
   // tmpfile(s)
   var id = uid(10);
@@ -89,7 +90,6 @@ function gify(input, output, opts, fn) {
     // convert to gif
     var cmd = ['ffmpeg'];
     cmd.push('-i', input);
-    // cmd.push('-filter:v', 'scale=' + scale);
     cmd.push('-r', String(rate));
     if (opts.start) cmd.push('-ss', String(opts.start));
     if (opts.duration) cmd.push('-t', String(opts.duration));
@@ -105,6 +105,8 @@ function gify(input, output, opts, fn) {
       cmd = ['gm', 'convert'];
       cmd.push('-delay', String(delay || 0));
       cmd.push('-loop', '0');
+      cmd.push('+dither -depth 8 -colors 50');
+      cmd.push('-resize', resize);
       cmd.push(wildcard);
       cmd.push(output);
       cmd = cmd.join(' ');
